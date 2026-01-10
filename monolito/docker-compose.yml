@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  monolito-db:
+    image: postgres:15-alpine
+    container_name: monolito-db
+    environment:
+      POSTGRES_DB: ecommerce
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ./app/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  monolito-app:
+    build: ./app
+    container_name: monolito-app
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@monolito-db:5432/ecommerce
+      JWT_SECRET: supersecretkey123456
+      JWT_EXPIRES_IN: 8h
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      monolito-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
