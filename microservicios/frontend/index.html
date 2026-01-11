@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-commerce Monolito - Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #1565c0;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+        }
+
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e0e0e0;
+        }
+
+        .section h2 {
+            color: #1565c0;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #1565c0;
+            padding-bottom: 10px;
+        }
+
+        .auth-section {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        input {
+            padding: 12px 15px;
+            border: 1px solid #1565c0;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: Arial, sans-serif;
+            transition: border 0.3s;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #0d47a1;
+            box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.2);
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: Arial, sans-serif;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            opacity: 0.9;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary {
+            background: #1565c0;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+
+        .user-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            display: none;
+            border: 1px solid #1565c0;
+        }
+
+        .user-info.visible {
+            display: block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th,
+        td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        th {
+            background: #e3f2fd;
+            font-weight: 600;
+            color: #1565c0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .cart-total {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #1565c0;
+            text-align: right;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid #1565c0;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #6c757d;
+            padding: 30px;
+            font-style: italic;
+        }
+
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .order-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #1565c0;
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .order-items {
+            padding-left: 15px;
+        }
+
+        .order-item {
+            padding: 5px 0;
+            color: #495057;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>E-commerce Monolito</h1>
+
+        <!-- AUTH -->
+        <div class="section">
+            <h2>Autenticación</h2>
+            <div id="message"></div>
+
+            <div id="loginForm" class="auth-section">
+                <input type="email" id="email" placeholder="Email" value="demo@demo.com">
+                <input type="password" id="password" placeholder="Password" value="demo1234">
+                <button class="btn-primary" onclick="login()">Iniciar Sesión</button>
+            </div>
+
+            <div id="userInfo" class="user-info">
+                <p><strong>Usuario:</strong> <span id="userEmail"></span></p>
+                <button class="btn-danger btn-small" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </div>
+
+        <!-- PRODUCTOS -->
+        <div class="section">
+            <h2>Catálogo de Productos</h2>
+            <button class="btn-primary" onclick="loadProducts()">Cargar Productos</button>
+            <div id="productsContainer"></div>
+        </div>
+
+        <!-- CARRITO -->
+        <div class="section">
+            <h2>Carrito de Compras</h2>
+            <div id="cartContainer">
+                <div class="empty-state">El carrito está vacío</div>
+            </div>
+            <div id="cartTotal" class="cart-total hidden"></div>
+            <button class="btn-primary" onclick="createOrder()" id="createOrderBtn"
+                style="margin-top: 15px; display: none;">Crear Pedido</button>
+        </div>
+
+        <!-- PEDIDOS -->
+        <div class="section">
+            <h2>Mis Pedidos</h2>
+            <button class="btn-primary" onclick="loadOrders()">Cargar Pedidos</button>
+            <div id="ordersContainer"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>
