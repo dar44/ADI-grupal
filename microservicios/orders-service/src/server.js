@@ -42,19 +42,20 @@ app.get('/orders/health', async (req, res) => {
 // Listar pedidos del usuario
 app.get('/orders', requireAuth, async (req, res) => {
     try {
-        const ordersResult = await pool.query(
-            'SELECT id, total_cents, created_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC',
+        // Use ? placeholders with MySQL and destructure the rows array
+        const [orderRows] = await pool.query(
+            'SELECT id, total_cents, created_at FROM orders WHERE user_id = ? ORDER BY created_at DESC',
             [req.user.id]
         );
 
         const orders = [];
-        for (const orderRow of ordersResult.rows) {
-            const itemsResult = await pool.query(
-                'SELECT product_id, product_name, unit_price_cents, quantity FROM order_items WHERE order_id = $1',
+        for (const orderRow of orderRows) {
+            const [itemRows] = await pool.query(
+                'SELECT product_id, product_name, unit_price_cents, quantity FROM order_items WHERE order_id = ?',
                 [orderRow.id]
             );
 
-            const items = itemsResult.rows.map(item => ({
+            const items = itemRows.map(item => ({
                 productId: item.product_id,
                 productName: item.product_name,
                 unitPriceCents: item.unit_price_cents,
@@ -80,7 +81,8 @@ app.get('/orders', requireAuth, async (req, res) => {
 
 // Crear pedido (con llamada HTTP a Catalog Service)
 app.post('/orders', requireAuth, async (req, res) => {
-    const client = await pool.connect();
+    // Use a dedicated connection for the transaction
+    const connection = await pool.getConnection();
     try {
         const { items } = req.body;
 
@@ -95,7 +97,7 @@ app.post('/orders', requireAuth, async (req, res) => {
             }
         }
 
-        await client.query('BEGIN');
+        await connection.beginTransaction();
 
         console.log(`[Orders Service] 📦 Creando pedido para usuario ${req.user.id} con ${items.length} items`);
 
@@ -109,7 +111,7 @@ app.post('/orders', requireAuth, async (req, res) => {
                 const product = await catalogClient.getProduct(item.productId);
 
                 if (!product) {
-                    await client.query('ROLLBACK');
+                    await connection.rollback();
                     return res.status(400).json({ error: `Producto con id ${item.productId} no existe` });
                 }
 
@@ -126,7 +128,7 @@ app.post('/orders', requireAuth, async (req, res) => {
                 console.log(`[Orders Service] ✅ Producto validado: ${product.name} x${item.quantity}`);
 
             } catch (error) {
-                await client.query('ROLLBACK');
+                await connection.rollback();
                 console.error('[Orders Service] Error validando producto:', error.message);
                 return res.status(503).json({
                     error: 'Catalog Service no disponible. No se puede validar productos.'
@@ -134,23 +136,30 @@ app.post('/orders', requireAuth, async (req, res) => {
             }
         }
 
-        // Crear pedido
-        const orderResult = await client.query(
-            'INSERT INTO orders (user_id, total_cents) VALUES ($1, $2) RETURNING id, total_cents, created_at',
+        // Crear pedido.  MySQL no soporta RETURNING en todas las versiones, así que usamos insertId.
+        const [orderResult] = await connection.query(
+            'INSERT INTO orders (user_id, total_cents) VALUES (?, ?)',
             [req.user.id, totalCents]
         );
 
-        const order = orderResult.rows[0];
+        const orderId = orderResult.insertId;
+
+        // Recuperar el pedido recién creado
+        const [orderRows] = await connection.query(
+            'SELECT id, total_cents, created_at FROM orders WHERE id = ?',
+            [orderId]
+        );
+        const order = orderRows[0];
 
         // Insertar items
         for (const item of validatedItems) {
-            await client.query(
-                'INSERT INTO order_items (order_id, product_id, product_name, unit_price_cents, quantity) VALUES ($1, $2, $3, $4, $5)',
-                [order.id, item.productId, item.productName, item.unitPriceCents, item.quantity]
+            await connection.query(
+                'INSERT INTO order_items (order_id, product_id, product_name, unit_price_cents, quantity) VALUES (?, ?, ?, ?, ?)',
+                [orderId, item.productId, item.productName, item.unitPriceCents, item.quantity]
             );
         }
 
-        await client.query('COMMIT');
+        await connection.commit();
 
         console.log(`[Orders Service] ✅ Pedido #${order.id} creado exitosamente`);
 
@@ -163,11 +172,11 @@ app.post('/orders', requireAuth, async (req, res) => {
             }
         });
     } catch (error) {
-        await client.query('ROLLBACK');
+        await connection.rollback();
         console.error('[Orders Service] Error en POST /orders:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
     } finally {
-        client.release();
+        connection.release();
     }
 });
 

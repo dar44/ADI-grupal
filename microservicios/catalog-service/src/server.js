@@ -21,9 +21,10 @@ app.get('/catalog/health', async (req, res) => {
 // Listar todos los productos
 app.get('/catalog/products', async (req, res) => {
     try {
-        const result = await pool.query('SELECT id, name, price_cents, stock FROM products ORDER BY id');
+        // In MySQL, pool.query returns an array: [rows, fields]
+        const [rows] = await pool.query('SELECT id, name, price_cents, stock FROM products ORDER BY id');
 
-        const products = result.rows.map(row => ({
+        const products = rows.map(row => ({
             id: row.id,
             name: row.name,
             priceCents: row.price_cents,
@@ -43,14 +44,15 @@ app.get('/catalog/products', async (req, res) => {
 app.get('/catalog/products/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await pool.query('SELECT id, name, price_cents, stock FROM products WHERE id = $1', [id]);
+        // Use ? placeholder for parameters in MySQL
+        const [rows] = await pool.query('SELECT id, name, price_cents, stock FROM products WHERE id = ?', [id]);
 
-        if (result.rows.length === 0) {
+        if (rows.length === 0) {
             console.log(`[Catalog Service] Producto ${id} no encontrado`);
             return res.status(404).json({ error: 'Producto no encontrado' });
         }
 
-        const row = result.rows[0];
+        const row = rows[0];
         const product = {
             id: row.id,
             name: row.name,

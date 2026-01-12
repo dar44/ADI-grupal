@@ -24,19 +24,21 @@ services:
       - microservices-network
 
   catalog-db:
-    image: postgres:15-alpine
+    # Switch Catalog DB to MySQL.  We keep the same service name so that
+    # catalog-service can still refer to `catalog-db` as its host.
+    image: mysql:8.0
     container_name: catalog-db
     environment:
-      POSTGRES_DB: catalog_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      MYSQL_DATABASE: catalog_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: root
     volumes:
+      # Initialize the catalog database using the MySQL-specific SQL script
       - ./catalog-service/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - catalog_data:/var/lib/postgresql/data
-    ports:
-      - "5433:5432"
+      - catalog_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "user", "-ppassword"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -44,19 +46,20 @@ services:
       - microservices-network
 
   orders-db:
-    image: postgres:15-alpine
+    # Switch Orders DB to MySQL.  We keep the same service name so that
+    # orders-service can still refer to `orders-db` as its host.
+    image: mysql:8.0
     container_name: orders-db
     environment:
-      POSTGRES_DB: orders_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      MYSQL_DATABASE: orders_db
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: root
     volumes:
       - ./orders-service/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - orders_data:/var/lib/postgresql/data
-    ports:
-      - "5434:5432"
+      - orders_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "user", "-ppassword"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -86,7 +89,8 @@ services:
     build: ./catalog-service
     container_name: catalog-service
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@catalog-db:5432/catalog_db
+      # Use MySQL connection string.  mysql2 supports passing the DSN directly.
+      DATABASE_URL: mysql://user:password@catalog-db:3306/catalog_db
       PORT: 3002
     ports:
       - "3002:3002"
@@ -101,7 +105,8 @@ services:
     build: ./orders-service
     container_name: orders-service
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@orders-db:5432/orders_db
+      # Use MySQL connection string for the orders database.
+      DATABASE_URL: mysql://user:password@orders-db:3306/orders_db
       CATALOG_SERVICE_URL: http://catalog-service:3002
       JWT_SECRET: supersecretkey123456
       PORT: 3003

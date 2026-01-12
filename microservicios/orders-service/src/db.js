@@ -1,15 +1,16 @@
-const { Pool } = require('pg');
+const mysql = require('mysql2/promise');
 
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-});
+// Create a MySQL connection pool using the DSN provided in DATABASE_URL.
+const pool = mysql.createPool(process.env.DATABASE_URL);
 
-pool.on('connect', () => {
-    console.log('[Orders Service] Conectado a PostgreSQL');
-});
-
-pool.on('error', (err) => {
-    console.error('[Orders Service] Error en PostgreSQL:', err);
-});
+// Log connection status on startup.
+pool.getConnection()
+    .then((connection) => {
+        console.log('[Orders Service] Conectado a MySQL');
+        connection.release();
+    })
+    .catch((err) => {
+        console.error('[Orders Service] Error en MySQL:', err);
+    });
 
 module.exports = pool;
